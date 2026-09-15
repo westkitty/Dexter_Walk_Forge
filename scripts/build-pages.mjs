@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { injectDocumentHooks } from './html-document.mjs';
 
 const root = process.cwd();
 const out = path.join(root, '_site');
@@ -23,15 +24,14 @@ const bodyHook = '<script src="./pwa-install.js" defer></script>';
 
 for (const file of ['index.html','timeforge.html']) {
   const target = path.join(out, file);
-  let html = fs.readFileSync(target, 'utf8');
-  if (!html.includes('manifest.webmanifest')) {
-    if (!html.includes('</head>')) throw new Error(`${file}: missing </head>`);
-    html = html.replace('</head>', `${headHooks}</head>`);
-  }
-  if (!html.includes('pwa-install.js')) {
-    if (!html.includes('</body>')) throw new Error(`${file}: missing </body>`);
-    html = html.replace('</body>', `${bodyHook}</body>`);
-  }
+  const source = fs.readFileSync(target, 'utf8');
+  const html = injectDocumentHooks(source, {
+    headHook: headHooks,
+    bodyHook,
+    headMarker: 'rel="manifest" href="./manifest.webmanifest"',
+    bodyMarker: 'src="./pwa-install.js"',
+    label: file
+  });
   fs.writeFileSync(target, html);
 }
 console.log(`PAGES BUILD PASS: ${files.length + 2} runtime assets staged in _site`);

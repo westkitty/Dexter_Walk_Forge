@@ -2,12 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { documentBoundaries, injectDocumentHooks, firstInlineScript } from './scripts/html-document.mjs';
 
 const root = process.cwd();
 const siteIndex = process.argv.indexOf('--site');
 const site = siteIndex >= 0 ? process.argv[siteIndex + 1] : null;
 const read = p => fs.readFileSync(path.join(root, p));
 const text = p => read(p).toString('utf8');
+const headHook = '<link rel="manifest" href="./manifest.webmanifest">';
+const bodyHook = '<script src="./pwa-install.js" defer></script>';
 
 const manifest = JSON.parse(text('manifest.webmanifest'));
 assert.equal(manifest.name, 'Dexter Walk Forge');
@@ -24,12 +27,33 @@ for (const [file, expected] of [['icons/icon-192.png',192],['icons/icon-512.png'
   assert.equal(b.readUInt32BE(20), expected);
 }
 
-new vm.Script(text('sw.js'), { filename: 'sw.js' });
-new vm.Script(text('pwa-install.js'), { filename: 'pwa-install.js' });
-assert.match(text('sw.js'), /caches\.open\(CACHE\)/);
-assert.match(text('sw.js'), /self\.clients\.claim/);
-assert.match(text('pwa-install.js'), /beforeinstallprompt/);
-assert.match(text('pwa-install.js'), /serviceWorker\.register\('\.\/sw\.js'/);
+const sw = text('sw.js');
+const install = text('pwa-install.js');
+new vm.Script(sw, { filename: 'sw.js' });
+new vm.Script(install, { filename: 'pwa-install.js' });
+assert.match(sw, /caches\.open\(CACHE\)/);
+assert.match(sw, /key\.startsWith\(CACHE_PREFIX\)/, 'service worker must only clean Dexter Walk Forge cache keys');
+assert.doesNotMatch(sw, /filter\(key => key !== CACHE\)/, 'service worker must not delete unrelated origin caches');
+assert.match(sw, /cache\.match\(request\)/, 'runtime cache lookup must stay inside the app cache');
+assert.match(install, /beforeinstallprompt/);
+assert.match(install, /ADD TO HOME/, 'iOS install fallback missing');
+assert.match(install, /serviceWorker\.register\('\.\/sw\.js'/);
+
+const synthetic = '<!doctype html><html><head><title>T</title></head><body><script>const nested=`<html><body>trap</body></html>`;globalThis.ok=true;</script><main>real page</main></body></html>';
+const syntheticScript = firstInlineScript(synthetic);
+const syntheticBuilt = injectDocumentHooks(synthetic, {
+  headHook,
+  bodyHook,
+  headMarker: 'manifest.webmanifest',
+  bodyMarker: 'pwa-install.js',
+  label: 'synthetic-regression'
+});
+assert.equal(firstInlineScript(syntheticBuilt), syntheticScript, 'PWA injection corrupted an inline script containing nested HTML');
+new vm.Script(firstInlineScript(syntheticBuilt), { filename: 'synthetic-inline.js' });
+const syntheticBounds = documentBoundaries(syntheticBuilt, 'synthetic-built');
+const syntheticHookPos = syntheticBuilt.indexOf(bodyHook);
+assert(syntheticHookPos > syntheticBuilt.indexOf('</script>'), 'PWA body hook must come after the real inline script');
+assert.equal(syntheticBuilt.slice(syntheticHookPos + bodyHook.length, syntheticBounds.bodyClose).trim(), '', 'PWA body hook must sit at the outer body boundary');
 
 const workflow = text('.github/workflows/pages.yml');
 for (const required of ['actions/checkout@v6','actions/configure-pages@v5','actions/upload-pages-artifact@v4','actions/deploy-pages@v4','pages: write','id-token: write','node verify.mjs','node timeforge-verify.mjs','node pwa-verify.mjs','node scripts/build-pages.mjs']) assert(workflow.includes(required));
@@ -37,9 +61,20 @@ for (const required of ['actions/checkout@v6','actions/configure-pages@v5','acti
 if (site) {
   for (const file of ['index.html','timeforge.html','manifest.webmanifest','sw.js','pwa-install.js','offline.html','icons/icon-192.png','icons/icon-512.png']) assert(fs.existsSync(path.join(root, site, file)), `${file} missing from ${site}`);
   for (const file of ['index.html','timeforge.html']) {
+    const source = text(file);
     const html = fs.readFileSync(path.join(root, site, file), 'utf8');
-    assert(html.includes('rel="manifest" href="./manifest.webmanifest"'));
-    assert(html.includes('src="./pwa-install.js"'));
+    const bounds = documentBoundaries(html, `${site}/${file}`);
+    const hookPos = html.indexOf(bodyHook);
+    assert(html.includes(headHook), `${file}: manifest hook missing`);
+    assert(hookPos >= 0, `${file}: install hook missing`);
+    assert.equal(html.slice(hookPos + bodyHook.length, bounds.bodyClose).trim(), '', `${file}: install hook is not at the outer body boundary`);
+
+    const sourceInline = firstInlineScript(source);
+    const builtInline = firstInlineScript(html);
+    if (sourceInline !== null) {
+      assert.equal(builtInline, sourceInline, `${file}: Pages build changed the first inline script`);
+      new vm.Script(builtInline, { filename: `${file}:inline` });
+    }
   }
 }
-console.log(`PWA VERIFY PASS${site ? ` (${site})` : ''}: manifest, icons, service worker, install flow, Pages workflow${site ? ', and built HTML hooks' : ''}`);
+console.log(`PWA VERIFY PASS${site ? ` (${site})` : ''}: manifest, icons, scoped service worker, install flow, parser-safe injection${site ? ', built HTML script integrity, and outer-boundary hooks' : ''}`);
