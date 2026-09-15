@@ -12,7 +12,8 @@ const text = p => read(p).toString('utf8');
 const headHook = '<link rel="manifest" href="./manifest.webmanifest">';
 const installHook = '<script src="./pwa-install.js" defer></script>';
 const guideHook = '<script src="./onboarding.js" defer></script>';
-const bodyHook = installHook + guideHook;
+const layerHook = '<style id="dwf-guide-layer-fix">.dwf-guide-overlay{z-index:10010!important}</style>';
+const bodyHook = installHook + guideHook + layerHook;
 
 const manifest = JSON.parse(text('manifest.webmanifest'));
 assert.equal(manifest.name, 'Dexter Walk Forge');
@@ -88,6 +89,7 @@ if (site) {
     assert(hookPos >= 0, `${file}: PWA/tutorial hooks missing`);
     assert.equal(html.indexOf(installHook), hookPos, `${file}: install hook must precede guide hook`);
     assert.equal(html.indexOf(guideHook), hookPos + installHook.length, `${file}: guide hook must immediately follow install hook`);
+    assert.equal(html.indexOf(layerHook), hookPos + installHook.length + guideHook.length, `${file}: tutorial modal layer guard must follow the guide hook`);
     assert.equal(html.slice(hookPos + bodyHook.length, bounds.bodyClose).trim(), '', `${file}: PWA/tutorial hooks are not at the outer body boundary`);
 
     const sourceInline = firstInlineScript(source);

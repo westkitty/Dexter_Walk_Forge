@@ -22,7 +22,8 @@ const headHooks = [
 ].join('');
 const bodyHook = [
   '<script src="./pwa-install.js" defer></script>',
-  '<script src="./onboarding.js" defer></script>'
+  '<script src="./onboarding.js" defer></script>',
+  '<style id="dwf-guide-layer-fix">.dwf-guide-overlay{z-index:10010!important}</style>'
 ].join('');
 
 for (const file of ['index.html','timeforge.html']) {
