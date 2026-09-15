@@ -6,7 +6,7 @@ const root = process.cwd();
 const out = path.join(root, '_site');
 const files = [
   'index.html','timeforge.html','timeforge-core.js','timeforge-ui.js','timeforge-app.js',
-  'manifest.webmanifest','sw.js','pwa-install.js','offline.html'
+  'manifest.webmanifest','sw.js','pwa-install.js','onboarding.js','offline.html'
 ];
 
 fs.rmSync(out, { recursive: true, force: true });
@@ -20,7 +20,10 @@ const headHooks = [
   '<link rel="apple-touch-icon" href="./icons/icon-192.png">',
   '<meta name="mobile-web-app-capable" content="yes">'
 ].join('');
-const bodyHook = '<script src="./pwa-install.js" defer></script>';
+const bodyHook = [
+  '<script src="./pwa-install.js" defer></script>',
+  '<script src="./onboarding.js" defer></script>'
+].join('');
 
 for (const file of ['index.html','timeforge.html']) {
   const target = path.join(out, file);
@@ -29,7 +32,7 @@ for (const file of ['index.html','timeforge.html']) {
     headHook: headHooks,
     bodyHook,
     headMarker: 'rel="manifest" href="./manifest.webmanifest"',
-    bodyMarker: 'src="./pwa-install.js"',
+    bodyMarker: 'src="./onboarding.js"',
     label: file
   });
   fs.writeFileSync(target, html);

@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'dexter-walk-forge-pwa-';
-const CACHE = `${CACHE_PREFIX}v2`;
+const CACHE = `${CACHE_PREFIX}v3`;
 const CORE = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const CORE = [
   './timeforge-ui.js',
   './timeforge-app.js',
   './pwa-install.js',
+  './onboarding.js',
   './manifest.webmanifest',
   './offline.html',
   './icons/icon-192.png',
