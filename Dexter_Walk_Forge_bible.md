@@ -52,3 +52,39 @@ Runtime QA exposed one real defect before delivery: the demo path double-normali
 
 - Direct `file://` browser navigation is blocked by administrator policy in the managed Chromium environment. Runtime QA injected the exact final HTML shell plus the exact repo-local Timeforge scripts into an allowed blank document, matching the repository's existing QA method.
 - Real microphone/Web Speech verification for the primary app remains outside this Timeforge slice and remains the existing project-level uncertainty.
+
+## 2026-09-15 — Pages/PWA parser and cache bugsweep
+
+Implementation commit: `ee8d9d8bbed22a795aa90d223e09539fabec0bf5`
+Workflow run: `34950237988`
+Live Pages URL: `https://westkitty.github.io/Dexter_Walk_Forge/`
+
+### Trigger
+
+User screenshots showed the hosted app rendering normal UI followed by raw JavaScript source. This was treated as a deployment/runtime regression, not a cosmetic layout bug.
+
+### Root cause and repairs
+
+- The Pages builder injected its PWA script with first-match `</body>` replacement. Dexter Walk Forge's Walk Capsule generator contains nested HTML, so the first `</body>` belonged to a JavaScript template string. The injected literal `</script>` terminated the real app script early. Replaced generic first-match injection with validated outer-document boundary injection.
+- Added a regression fixture that deliberately embeds nested `<body>...</body>` markup inside an inline script and proves the hosted hook cannot enter that script.
+- Built-site verification now asserts the first inline script is byte-for-byte identical to source and compiles successfully.
+- Service-worker activation previously deleted all other cache keys on the shared GitHub Pages origin. Cleanup is now restricted to Dexter Walk Forge's cache prefix.
+- Static cached resources now receive background refresh instead of remaining cache-first forever.
+- Install affordance now clears DWF's bottom capture/navigation area and supports iOS Add to Home Screen guidance.
+
+### Validation
+
+GitHub Actions run `34950237988` passed the primary verifier, Timeforge verifier, source PWA verifier, Pages build, built-site parser/script-integrity verifier, Pages configuration, artifact upload, and deployment.
+
+The exact uploaded Pages artifact was then downloaded and inspected independently. In built `index.html`, the primary inline script closes before the injected PWA script, and the PWA script sits immediately before the real outer `</body>`. The failure path visible in the screenshots is absent.
+
+### New invariants
+
+- Never use first-match generic closing-tag replacement for Pages injection in HTML containing generated HTML strings.
+- Hosted builds must preserve the source inline script exactly.
+- Service-worker cache cleanup must be application-prefix-scoped on shared origins.
+- Source `index.html` remains the local single-file artifact; PWA augmentation belongs to the generated Pages artifact.
+
+### Remaining evidence gap
+
+Real-device installed-PWA launch/persistence/offline behavior and the pre-existing microphone/Web Speech path remain to be verified on target hardware.
