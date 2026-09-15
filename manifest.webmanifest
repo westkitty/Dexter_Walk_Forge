@@ -1,0 +1,41 @@
+{
+  "id": "./",
+  "name": "Dexter Walk Forge",
+  "short_name": "Walk Forge",
+  "description": "Turn a walk full of unstructured thoughts into a source-traceable product plan, alternate branches, and implementation handoffs.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#ff334d",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start a Walk",
+      "short_name": "Walk",
+      "description": "Open Dexter Walk Forge capture.",
+      "url": "./"
+    },
+    {
+      "name": "Open Timeforge",
+      "short_name": "Timeforge",
+      "description": "Inspect provenance, branch project state, compare, and merge.",
+      "url": "./timeforge.html"
+    }
+  ]
+}
