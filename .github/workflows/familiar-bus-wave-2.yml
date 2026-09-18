@@ -1,0 +1,27 @@
+name: Familiar Bus Wave 2 validation
+
+on:
+  push:
+    branches: [feature/familiar-bus-wave-2]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify primary artifact
+        run: node verify.mjs
+      - name: Verify Timeforge
+        run: node timeforge-verify.mjs
+      - name: Verify PWA source
+        run: node pwa-verify.mjs
+      - name: Build Pages artifact
+        run: node scripts/build-pages.mjs
+      - name: Verify built Pages artifact
+        run: node pwa-verify.mjs --site _site
+      - name: Diff hygiene
+        run: git diff --check origin/main...HEAD
